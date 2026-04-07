@@ -23,7 +23,7 @@ file(params.bam_sample_id_file).splitEachLine('\t') { fields ->
 
 process merge_bam_files {
     label 'samtools_merge'
-    publishDir "${params.merge_bam_dir}", mode: 'copy'
+    publishDir "${params.merge_bam_dir}", mode: 'copy', overwrite: true
 
     input:
     tuple val(sample_id), path(bam_files) // Expecting a tuple of sample_id and a list of BAM file paths
