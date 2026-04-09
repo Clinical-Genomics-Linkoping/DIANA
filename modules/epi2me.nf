@@ -124,6 +124,26 @@ RENVEOF
     """
 }
 
+// Extract regions of interest from merged BAM — must complete before run_clair3 and run_clairs_to
+process extract_roi {
+    label 'roi_extraction'
+    publishDir "${params.occ_bam_dir}", mode: 'copy', overwrite: true
+
+    input:
+    tuple val(sample_id), path(bam), path(bai), path(roi_bed)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.roi.bam"), path("${sample_id}.roi.bam.bai"), emit: occ_bam
+
+    script:
+    """
+    set -euo pipefail
+    samtools view -@ ${task.cpus} -b -L ${roi_bed} ${bam} \\
+    | samtools sort -@ ${task.cpus} -o ${sample_id}.roi.bam
+    samtools index -@ ${task.cpus} ${sample_id}.roi.bam
+    """
+}
+
 // SNV calling using Clair3 for OCC (regions of interest) regions
 process run_clair3 {
     label 'clair3'
@@ -250,7 +270,6 @@ process cramino_report {
 workflow epi2me {
     take:
         merged_data
-        occ_bams_channel  // Optional: ROI BAMs from mergebam (for run_mode_order)
 
     main:
         params.run_mode = params.run_mode_epi2me ?: 'all'
@@ -327,65 +346,6 @@ workflow epi2me {
                 )
             }
 
-        // Create OCC/ROI BAM input channel for SNV calling
-        // For run_mode_order: use the occ_bams_channel passed from mergebam (waits for ROI extraction)
-        // For run_mode_epiannotation: read .roi.bam files from roi_bam_folder (already exist)
-        occ_input_channel = params.run_mode_order ?
-            occ_bams_channel.map { sid, occ_bam, occ_bai ->
-                tuple(sid, occ_bam, occ_bai, file(params.reference_genome), file(params.reference_genome_bai))
-            } :
-            params.run_mode_epiannotation ?
-            merged_data.map { sid, bam, bai, ref, ref_bai ->
-                // For run_mode_epiannotation, construct OCC BAM paths from sample_id
-                def occ_bam = file("${params.roi_bam_folder}/${sid}.roi.bam")
-                def occ_bai = file("${params.roi_bam_folder}/${sid}.roi.bam.bai")
-
-                // Try wildcard if exact match doesn't exist
-                if (!occ_bam.exists()) {
-                    occ_bam = file("${params.roi_bam_folder}/${sid}.*.roi.bam")
-                    occ_bam = occ_bam.find()
-                }
-                if (!occ_bai.exists()) {
-                    occ_bai = file("${params.roi_bam_folder}/${sid}.*.roi.bam.bai")
-                    occ_bai = occ_bai.find()
-                }
-
-                tuple(sid, occ_bam, occ_bai, ref, ref_bai)
-            } : Channel
-            .from(file(params.epi2me_sample_id_file).readLines())
-            .map { line ->
-                def fields = line.tokenize("\t")
-                def sample_id = fields[0].trim()
-
-                // Try exact match first for .roi.bam files
-                def occ_bam = file("${params.roi_bam_folder}/${sample_id}.roi.bam")
-                def occ_bai = file("${params.roi_bam_folder}/${sample_id}.roi.bam.bai")
-
-                // If exact match doesn't exist, try wildcard pattern
-                if (!occ_bam.exists()) {
-                    occ_bam = file("${params.roi_bam_folder}/${sample_id}.*.roi.bam")
-                    occ_bam = occ_bam.find()
-                }
-                if (!occ_bai.exists()) {
-                    occ_bai = file("${params.roi_bam_folder}/${sample_id}.*.roi.bam.bai")
-                    occ_bai = occ_bai.find()
-                }
-
-                if (!occ_bam || !occ_bai || !occ_bam.exists() || !occ_bai.exists()) {
-                    println "WARNING: OCC/ROI BAM file not found for sample ID: ${sample_id}. Tried both exact match (${sample_id}.roi.bam) and wildcard pattern (${sample_id}.*.roi.bam)"
-                    return null
-                }
-
-                return tuple(
-                    sample_id,
-                    occ_bam,
-                    occ_bai,
-                    reference_genome,
-                    reference_genome_bai
-                )
-            }
-            .filter { it != null }
-
         // Run processes based on mode
         modkit_ch = Channel.empty()
         cnv_ch = Channel.empty()
@@ -393,6 +353,21 @@ workflow epi2me {
         clair3_ch = Channel.empty()
         clairsto_ch = Channel.empty()
         cramino_ch = Channel.empty()
+        occ_bam_ch = Channel.empty()
+
+        // extract_roi runs only for snv and all modes — output feeds into run_clair3 and run_clairs_to
+        if (params.run_mode in ['snv', 'all']) {
+            occ_bam_ch = extract_roi(
+                input_channel.map { sid, bam, bai, ref, ref_bai ->
+                    tuple(sid, bam, bai, file(params.roi_bed))
+                }
+            ).occ_bam
+        }
+
+        occ_input_channel = occ_bam_ch
+            .map { sid, occ_bam, occ_bai ->
+                tuple(sid, occ_bam, occ_bai, file(params.reference_genome), file(params.reference_genome_bai))
+            }
 
         if (params.run_mode in ['modkit', 'all']) {
             println "Running modkit..."
@@ -580,4 +555,5 @@ workflow epi2me {
                 log.info "Epi2me processing completed for sample: ${results[0]}"
                 results
             }
+        occ_bam = occ_bam_ch
 }

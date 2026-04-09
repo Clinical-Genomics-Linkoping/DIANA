@@ -710,9 +710,8 @@ ls -la containers/*.sif                        # Singularity
 ## Citation
 
 If you use this pipeline in your research, please cite:
-```
-[Citation details to be added]
-```
+
+> Bope CD, Nagymihaly R, Halldorsson S, et al. *DIANA: Diagnostic Integrated Analytics for Neoplastic Alterations a long-read whole genome sequencing pipeline for molecular neuropathology.* 2026. https://doi.org/10.64898/2026.03.25.714119
 
 ## License
 

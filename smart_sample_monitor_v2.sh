@@ -383,8 +383,8 @@ load_samples() {
     # Send log messages to stderr so they don't interfere with return value
     log "VERBOSE" "Reading sample IDs from: $SAMPLE_IDS_FILE" >&2
 
-    while IFS=$'\t' read -r sample_id flow_cell_id || [[ -n "$sample_id" ]]; do
-        ((line_count++))
+    while IFS=$'\t ' read -r sample_id flow_cell_id || [[ -n "$sample_id" ]]; do
+        ((++line_count))
         sample_id=$(echo "$sample_id" | xargs)  # Trim whitespace
 
         log "VERBOSE" "Line $line_count: raw='$sample_id' flow_cell='${flow_cell_id:-}'" >&2
@@ -394,7 +394,7 @@ load_samples() {
             samples+=("$sample_id")
             SAMPLE_STATUS["$sample_id"]="pending"
             SAMPLE_START_TIME["$sample_id"]=$(date +%s)
-            ((valid_count++))
+            ((++valid_count))
             log "VERBOSE" "Added valid sample #$valid_count: $sample_id" >&2
         else
             log "VERBOSE" "Skipped line $line_count: empty or comment" >&2
@@ -409,8 +409,8 @@ load_samples() {
     fi
 
     log "INFO" "Loaded samples: ${samples[*]}" >&2
-    # Only output the samples to stdout for capture
-    echo "${samples[@]}"
+    # Only output the samples to stdout for capture (one per line for safe array capture)
+    printf '%s\n' "${samples[@]}"
 }
 
 find_summary_file() {
@@ -595,10 +595,9 @@ show_status_summary() {
 
 monitor_samples() {
     log "VERBOSE" "Starting load_samples function..."
-    local samples_string=$(load_samples)
-    local samples=($samples_string)
+    local samples=()
+    mapfile -t samples < <(load_samples)
 
-    log "VERBOSE" "Received samples string: '$samples_string'"
     log "VERBOSE" "Parsed into array: ${samples[*]}"
     log "VERBOSE" "Array length: ${#samples[@]}"
 
@@ -692,7 +691,19 @@ monitor_samples() {
 
         if [[ "$all_processed" == true ]]; then
             if [[ "$any_running" == false ]]; then
-                log "SUCCESS" "🎉 All samples completed!"
+                # Check if any samples actually failed
+                local has_failed=false
+                for sample_id in "${samples[@]}"; do
+                    if [[ "${SAMPLE_STATUS[$sample_id]}" == "failed" ]]; then
+                        has_failed=true
+                        break
+                    fi
+                done
+                if [[ "$has_failed" == true ]]; then
+                    log "INFO" "All samples processed (some failed — see above)."
+                else
+                    log "SUCCESS" "🎉 All samples completed!"
+                fi
                 break
             else
                 log "INFO" "All samples triggered, waiting for running jobs to finish..."

@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### `Added`
+- Added preprint citation to README (Bope CD et al. 2026, https://doi.org/10.64898/2026.03.25.714119)
+- Added `extract_roi` process to `modules/epi2me.nf` — runs for `snv` and `all` modes, directly feeding `run_clair3` and `run_clairs_to` without requiring a separate mergebam step
+- Added missing `occ_bam_dir` and `roi_bed` parameters to `conf/epi2me.config`
+- Added `extract_roi` container and cpus configuration to `conf/epi2me.config` (Singularity and Docker profiles)
+
+### `Changed`
+- Moved `extract_roi` from `modules/mergebam.nf` into `modules/epi2me.nf`; ROI extraction now happens inside the epi2me workflow and the result is emitted as `occ_bam`
+- Updated `main.nf` to remove the `occ_bams` argument from `epi2me()` calls and join annotation input via `epi2me_results.occ_bam` instead
+- `extract_roi` now uses `task.cpus` instead of `params.threads` (fixes undefined-parameter warning)
+
+### `Fixed`
+- Fixed `smart_sample_monitor_v2.sh` loading 0 samples when `set -eo pipefail` is active
+  - Root cause: `((line_count++))` returns exit code 1 when count is 0, killing the subshell silently
+  - Fix: changed to pre-increment `((++line_count))` and `((++valid_count))`
+  - Changed `load_samples` output from `echo "${samples[@]}"` to `printf '%s\n'` for safe newline-separated capture
+  - Changed sample capture from word-split string to `mapfile -t samples < <(load_samples)`
+
+
 - Added automated Zenodo upload script (`upload_to_zenodo.sh`) for reference file distribution
   - Supports creating new deposits, new versions, or uploading to existing drafts
   - Implements bucket-based upload API with progress bars
