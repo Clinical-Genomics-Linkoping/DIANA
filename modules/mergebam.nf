@@ -7,7 +7,7 @@ nextflow.enable.dsl=2
 
 // Load sample information from file mapping Sample_ID to Flow_cell_ID
 def sample_info = [:]
-file(params.bam_sample_id_file).splitEachLine('\t') { fields ->
+file(params.bam_sample_id_file).splitEachLine(~/\t| /) { fields ->
     if (fields.size() == 2) {
         if (fields[1] != '') { // Check if Flow Cell ID is not empty
             sample_info[fields[0]] = fields[1] // Map Sample_ID to Flow_cell_ID

@@ -99,7 +99,7 @@ workflow {
         def merged_bam_channel = Channel
             .from(file(params.epi2me_sample_id_file).readLines())
             .map { line ->
-                def fields = line.tokenize("\t")
+                def fields = line.trim().split(/\s+/) as List
                 def sample_id = fields[0].trim()
 
                 // Try exact match first

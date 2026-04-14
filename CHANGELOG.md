@@ -16,12 +16,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `main.nf` to remove the `occ_bams` argument from `epi2me()` calls and join annotation input via `epi2me_results.occ_bam` instead
 - `extract_roi` now uses `task.cpus` instead of `params.threads` (fixes undefined-parameter warning)
 
+### `Changed`
+- `sample_ids_bam.txt` delimiter handling now accepts both tab and space in all parsers
+  - `modules/mergebam.nf`: changed `splitEachLine('\t')` to `splitEachLine(~/\t| /)`
+  - `modules/epi2me.nf` and `main.nf`: changed `tokenize("\t")` to `trim().split(/\s+/)`
+
 ### `Fixed`
 - Fixed `smart_sample_monitor_v2.sh` loading 0 samples when `set -eo pipefail` is active
   - Root cause: `((line_count++))` returns exit code 1 when count is 0, killing the subshell silently
   - Fix: changed to pre-increment `((++line_count))` and `((++valid_count))`
   - Changed `load_samples` output from `echo "${samples[@]}"` to `printf '%s\n'` for safe newline-separated capture
   - Changed sample capture from word-split string to `mapfile -t samples < <(load_samples)`
+- Fixed `smart_sample_monitor_v2.sh` only logging one sample as completed when pipeline processes multiple samples
+  - Root cause: completion check skipped samples already marked `completed` in memory from a prior run
+  - Fix: log and count all samples with a report file present, regardless of prior status
+- Fixed annotation module only processing 1 of N samples in `run_mode_order` and `run_mode_epiannotation`
+  - Root cause: SNV/cramino barrier used `.cross()` which consumes the barrier signal once, silently dropping all samples after the first
+  - Fix: replaced `.cross()` with `.combine()` so all samples pair with the single barrier signal
+- Fixed `annotation:extract_epic` failing with `Unable to open file *.wf_mods.bedmethyl.gz`
+  - Root cause: `intersectBed` in the container does not support gzip input natively
+  - Fix: added `zcat -f` to decompress the bedmethyl file before passing to all `intersectBed` calls
 
 
 - Added automated Zenodo upload script (`upload_to_zenodo.sh`) for reference file distribution

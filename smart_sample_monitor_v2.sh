@@ -541,18 +541,23 @@ run_sample_pipeline() {
         # because Nextflow processes all samples in the sample_ids file
         local samples_processed=0
         for check_sample_id in "${!SAMPLE_STATUS[@]}"; do
-            # Skip samples that are already completed or failed
             local current_status="${SAMPLE_STATUS[$check_sample_id]}"
-            if [[ "$current_status" == "completed" || "$current_status" == "failed" ]]; then
+            local report_file="${result_path}/${check_sample_id}/${check_sample_id}_markdown_pipeline_report.pdf"
+
+            if [[ "$current_status" == "failed" ]]; then
                 continue
             fi
 
-            local report_file="${result_path}/${check_sample_id}/${check_sample_id}_markdown_pipeline_report.pdf"
-
             if [[ -f "$report_file" ]]; then
-                SAMPLE_STATUS["$check_sample_id"]="completed"
-                log "SUCCESS" "Sample $check_sample_id pipeline completed successfully - markdown report generated"
-                ((samples_processed++))
+                if [[ "$current_status" != "completed" ]]; then
+                    SAMPLE_STATUS["$check_sample_id"]="completed"
+                    log "SUCCESS" "Sample $check_sample_id pipeline completed successfully - markdown report generated"
+                    ((samples_processed++))
+                else
+                    # Already marked completed (e.g. from a prior run) — still count and log it
+                    log "SUCCESS" "Sample $check_sample_id already completed - markdown report present"
+                    ((samples_processed++))
+                fi
             fi
         done
 

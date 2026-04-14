@@ -317,7 +317,7 @@ workflow epi2me {
             } : Channel
             .from(file(params.epi2me_sample_id_file).readLines())
             .map { line ->
-                def fields = line.tokenize("\t")
+                def fields = line.trim().split(/\s+/) as List
                 def sample_id = fields[0].trim()
                 // Try exact match first, then wildcard pattern
                 def bam = file("${params.merge_bam_folder}/${sample_id}.merged.bam")
@@ -496,20 +496,19 @@ workflow epi2me {
 
         // In epiannotation/order mode, wait for SNV and cramino to complete
         if (params.run_mode_epiannotation || params.run_mode_order) {
-            // Collect all SNV and cramino outputs first as a barrier
+            // Collect all SNV and cramino outputs first as a barrier signal
+            // NOTE: must use .combine() not .cross() — .cross() consumes the barrier item once,
+            // so only the first sample passes; all remaining samples are silently dropped.
+            // .combine() creates a cartesian product: every sample pairs with the single barrier.
             def snv_cramino_barrier = clair3_ch
                 .mix(clairsto_ch)
                 .mix(cramino_ch)
                 .collect()
-                .ifEmpty([])
-                .map { [1] }  // Convert to a simple marker
+                .map { true }  // single "all done" signal
 
-            // Use cross to create synchronization without modifying the tuple structure
-            // cross creates pairs, then we extract just the original tuple
             results_ch = results_ch
-                .map { tuple -> [1, tuple] }  // Add a key
-                .cross(snv_cramino_barrier)  // Wait for barrier - creates [[key, tuple], [key]]
-                .map { it[0][1] }  // Extract the original tuple
+                .combine(snv_cramino_barrier)          // appends barrier flag to each tuple
+                .map { args -> args[0..(args.size()-2)] }  // drop the barrier flag
         }
 
         results_ch = results_ch

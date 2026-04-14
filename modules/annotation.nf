@@ -65,7 +65,7 @@ process extract_epic {
 
     script:
     """
-    which intersectBed 
+    which intersectBed
     intersectBed -a $bedmethyl -b $epicsites -wb | \
     awk -v OFS="\\t" '\$1=\$1' | awk -F'\\t' 'BEGIN{ OFS="\\t" }{print \$1,\$2,\$3,\$4,\$5,\$11,\$23}' > ${sample_id}_EpicSelect.bed
 
@@ -75,7 +75,7 @@ process extract_epic {
 
     grep -w 'm'  ${sample_id}_EpicSelect_header.bed >  ${sample_id}_EpicSelect_m.bed
 
-    awk 'BEGIN{                       
+    awk 'BEGIN{
     OFS="\\t";
     print "\\"chr\\"","\\"start\\"","\\"end\\"","\\"coverage\\"","\\"methylation_percentage\\"","\\"IlmnID\\""
     }
