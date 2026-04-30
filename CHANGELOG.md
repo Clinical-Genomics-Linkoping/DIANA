@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### `Added`
+- Added quality caution warnings to executive summary in PDF report
+  - Low Tumor Content warning shown when estimated tumor content is ≤15%
+  - Low Coverage warning shown when mean sequencing coverage is <30x
+  - Both warnings are independent and display simultaneously when both thresholds are missed
+  - Warnings use `warning.png` icon staged via Nextflow path and rendered with LaTeX `\includegraphics`
+  - Fallback plain-text warning rendered when image is unavailable
+- Added PDF printer compatibility improvements
+  - `\pdfminorversion=4` in LaTeX header forces PDF 1.4 output (universally printable)
+  - Ghostscript post-processing step in `annotation:markdown_report` flattens embedded graphics and fonts
+  - Ghostscript step is soft — skips silently if `gs` is not installed on the host, no extra install required
+
+### `Changed`
+- Fixed SNV executive summary CLNSIG filter to catch combined ClinVar pathogenic classifications
+  - Changed from exact match (`CLNSIG == "Pathogenic"`) to case-insensitive substring match
+  - Now catches values like `"Pathogenic/Likely_pathogenic/risk factor"`, `"Likely_pathogenic"`, etc.
+  - Only affects the executive summary table; full SNV table is unchanged
+
+
 - Added automated Zenodo upload script (`upload_to_zenodo.sh`) for reference file distribution
   - Supports creating new deposits, new versions, or uploading to existing drafts
   - Implements bucket-based upload API with progress bars

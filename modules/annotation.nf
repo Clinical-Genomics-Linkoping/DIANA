@@ -815,7 +815,8 @@ process markdown_report {
           path(nanodx_classifier),
           path(snv_target_genes),
           path(protein_coding_bed),
-          path(rmd_template)
+          path(rmd_template),
+          path(warning_img)
 
     output:
     file("${sample_id}_markdown_pipeline_report.pdf")
@@ -928,7 +929,25 @@ process markdown_report {
       "\${PWD}/\${output_file}" \
       "${workflow.manifest.version}" \
       "${params.snv_depth_threshold}" \
-      "${params.snv_gq_threshold}"
+      "${params.snv_gq_threshold}" \
+      "\${PWD}/${warning_img}"
+
+    # Flatten PDF with Ghostscript for maximum printer compatibility (soft — skips if gs absent)
+    if command -v gs >/dev/null 2>&1; then
+        echo "Ghostscript found — flattening PDF to PDF 1.4 for printer compatibility..."
+        gs -q -dBATCH -dNOPAUSE -dSAFER \
+           -sDEVICE=pdfwrite \
+           -dCompatibilityLevel=1.4 \
+           -dEmbedAllFonts=true \
+           -dSubsetFonts=true \
+           -dPrinted=false \
+           -sOutputFile="\${output_file}_flat.pdf" "\${output_file}" \
+        && mv "\${output_file}_flat.pdf" "\${output_file}" \
+        && echo "PDF flattened successfully." \
+        || echo "WARNING: Ghostscript flattening failed — keeping original PDF."
+    else
+        echo "Ghostscript not found on host — skipping PDF flattening (PDF 1.4 pdflatex flag still active)."
+    fi
 
     # Clean up intermediate files and folders created by R Markdown (belt and suspenders)
     echo "Cleaning up intermediate R Markdown files..."
@@ -2238,7 +2257,8 @@ workflow annotation {
                     nanodx_classifier,
                     file("${params.ref_dir}/snv_target_genes.txt"),
                     file(params.roi_protein_coding_bed),
-                    file("${params.diana_dir}/bin/nextflow_markdown_pipeline_update_final.Rmd")
+                    file("${params.diana_dir}/bin/nextflow_markdown_pipeline_update_final.Rmd"),
+                    file("${params.diana_dir}/docs/warning.png")
                 ]
             }.view()
 
