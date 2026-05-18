@@ -23,6 +23,8 @@ suppressPackageStartupMessages({
     library(BSgenome.Hsapiens.UCSC.hg38)
 })
 
+options(ucscChromosomeNames = FALSE)
+
 # Load Gviz object
 gvizobject <- load(gviz_data_path)
 
@@ -47,7 +49,7 @@ createCustomIdeogram <- function(chromosome) {
     # Create ideogram track with full band information
     itrack <- IdeogramTrack(
         genome = "hg38",
-        chromosome = chromosome,
+        chromosome = paste0("chr", chromosome),
         bands = bands_df,
         showId = TRUE,
         showBandId = TRUE,
@@ -65,13 +67,13 @@ ht <- HighlightTrack(
     trackList = Sample_track,
     start = c(55142193, 55154167), 
     width = 10,
-    chromosome = "7"
+    chromosome = "chr7"
 )
 plotTracks(
     list(itrack, gtrack, EGFR_annot, ht), 
     from = 55019017, 
     to = 55211628,
-    chromosome = "7",
+    chromosome = "chr7",
     #main = paste("EGFR Coverage -", sample_id),
     cex = 0.9,
     cex.mismatch = 0.5
@@ -82,17 +84,17 @@ dev.off()
 pdf(idh1_output, width=10, height=6)
 itrack <- createCustomIdeogram("2")
 gtrack <- GenomeAxisTrack()
-sTrack <- SequenceTrack(Hsapiens, chromosome = "2")
+sTrack <- SequenceTrack(Hsapiens, chromosome = "chr2")
 Sample_track <- AlignmentsTrack(bam_file, name = "IDH1 p.R132", reverseStacking = TRUE)
 ht <- HighlightTrack(
     trackList = list(sTrack, Sample_track),
     start = c(208248387),
     width = 2,
-    chromosome = "2"
+    chromosome = "chr2"
 )
 plotTracks(
     list(itrack, gtrack, ht),
-    chromosome = "2",
+    chromosome = "chr2",
     from = 208248370,
     to = 208248405,
     #main = paste("IDH1 p.R132 -", sample_id),
@@ -106,19 +108,19 @@ pdf(idh2_output, width=10, height=6)
 # IDH2 p.R172 (hg38)
 itrack <- createCustomIdeogram("15")
 gtrack <- GenomeAxisTrack()
-sTrack <- SequenceTrack(Hsapiens, chromosome = "15")
+sTrack <- SequenceTrack(Hsapiens, chromosome = "chr15")
 Sample_track <- AlignmentsTrack(bam_file, name = "IDH2 p.R172", reverseStacking = TRUE)
 
 ht <- HighlightTrack(
   trackList = list(sTrack, Sample_track),
   start = c(90088605),   # first base of the R172 codon
   width = 2,             # or use 3 to cover the full codon
-  chromosome = "15"
+  chromosome = "chr15"
 )
 
 plotTracks(
   list(itrack, gtrack, ht),
-  chromosome = "15",
+  chromosome = "chr15",
   from = 90088587,       # start - 18 bp
   to   = 90088622,       # start + 17 bp
   cex = 0.9,
@@ -130,18 +132,18 @@ plotTracks(
 pdf(tertp_output, width=10, height=6)
 itrack <- createCustomIdeogram("5")
 gtrack <- GenomeAxisTrack()
-sTrack <- SequenceTrack(Hsapiens, chromosome = "5")
+sTrack <- SequenceTrack(Hsapiens, chromosome = "chr5")
 Sample_track <- AlignmentsTrack(bam_file, name = "TERTp", reverseStacking = TRUE)
 ht <- HighlightTrack(
     trackList = list(sTrack, Sample_track),
     start = c(1295113, 1295135),
     width = 0,
-    chromosome = "5",
+    chromosome = "chr5",
     name = "TERTp"
 )
 plotTracks(
     list(itrack, gtrack, ht),
-    chromosome = "5",
+    chromosome = "chr5",
     from = 1295103,
     to = 1295145,
     #main = paste("TERTp -", sample_id),
