@@ -21,6 +21,7 @@ header-includes:
    - \preto\section{\needspace{5\baselineskip}}
    - \preto\subsection{\needspace{4\baselineskip}}
    - \preto\subsubsection{\needspace{3\baselineskip}}
+   - \pdfminorversion=4
 
 geometry: margin=0.5in
 ---
@@ -85,6 +86,7 @@ pipeline_version       <- args[25]
 # SNV filtering thresholds (new parameters)
 snv_depth_threshold    <- if (length(args) >= 26) as.numeric(args[26]) else 10
 snv_gq_threshold       <- if (length(args) >= 27) as.numeric(args[27]) else 10
+warning_img            <- if (length(args) >= 28) args[28] else NULL
 
 # Read in the votes and dictionary files
 if (!file.exists(votes_file)) {
@@ -170,6 +172,39 @@ knitr::include_graphics(logo_file)
 ## Sample ID: `r args[1]`
 
 The report is based on a mean coverage of **`r mean_coverage`** and the estimated tumor content in sample is **`r tumor_percent`**.
+
+```{r echo=FALSE, results='asis'}
+# Quality caution warnings — shown independently when thresholds are not met
+cov_value <- suppressWarnings(as.numeric(mean_coverage))
+tc_value  <- suppressWarnings(as.numeric(gsub("%", "", tumor_percent)))
+
+show_warning <- function(title, message) {
+  if (!is.null(warning_img) && file.exists(warning_img)) {
+    cat("\\begin{minipage}{\\textwidth}\\vspace{4pt}\n")
+    cat("\\includegraphics[height=20pt]{", warning_img, "} ",
+        "\\textbf{", title, "} ", message, "\n", sep = "")
+    cat("\\vspace{4pt}\\end{minipage}\n\n")
+  } else {
+    cat("> [!] **", title, "** ", message, "\n\n", sep = "")
+  }
+}
+
+if (!is.na(tc_value) && tc_value <= 15) {
+  show_warning(
+    "Low Tumor Content:",
+    paste0("The estimated tumor cell content (", tumor_percent,
+           ") is at or below the recommended threshold (<=15%). Molecular findings may not reflect the true tumor profile and should be interpreted with caution.")
+  )
+}
+
+if (!is.na(cov_value) && cov_value < 30) {
+  show_warning(
+    "Low Coverage:",
+    paste0("The mean sequencing coverage \\textbf{(", mean_coverage,
+           "x)} is below the recommended threshold \\textbf{(>=30x)}. Variant alteration should be interpreted with caution.")
+  )
+}
+```
 
 ### CrossNN Methylation-based Classification
 
@@ -491,15 +526,16 @@ tryCatch({
             if ("CLNSIG" %in% colnames(df_snv_all)) {
                 # Use | (OR) to select rows where EITHER condition is TRUE:
                 # 1. Gene is in target genes list, OR
-                # 2. CLNSIG = "Pathogenic"
+                # 2. CLNSIG contains "pathogenic" (case-insensitive) — catches combined
+                #    classifications like "Pathogenic/Likely_pathogenic/risk factor"
                 df_snv_filtered <- df_snv_all %>%
                     rowwise() %>%
                     mutate(
                         in_target = `Gene name` %in% target_genes,
-                        is_pathogenic_exact = CLNSIG == "Pathogenic"
+                        is_pathogenic = grepl("pathogenic", CLNSIG, ignore.case = TRUE)
                     ) %>%
-                    filter(in_target | is_pathogenic_exact) %>%
-                    select(-in_target, -is_pathogenic_exact) %>%
+                    filter(in_target | is_pathogenic) %>%
+                    select(-in_target, -is_pathogenic) %>%
                     ungroup()
             } else {
                 # If no CLNSIG column, filter by target genes only

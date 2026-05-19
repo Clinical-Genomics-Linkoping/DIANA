@@ -10,16 +10,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `extract_roi` process to `modules/epi2me.nf` — runs for `snv` and `all` modes, directly feeding `run_clair3` and `run_clairs_to` without requiring a separate mergebam step
 - Added missing `occ_bam_dir` and `roi_bed` parameters to `conf/epi2me.config`
 - Added `extract_roi` container and cpus configuration to `conf/epi2me.config` (Singularity and Docker profiles)
+- Added quality caution warnings to executive summary in PDF report
+  - Low Tumor Content warning shown when estimated tumor content is ≤15%
+  - Low Coverage warning shown when mean sequencing coverage is <30x
+  - Both warnings are independent and display simultaneously when both thresholds are missed
+  - Warnings use `warning.png` icon staged via Nextflow path and rendered with LaTeX `\includegraphics`
+  - Fallback plain-text warning rendered when image is unavailable
+- Added PDF printer compatibility improvements
+  - `\pdfminorversion=4` in LaTeX header forces PDF 1.4 output (universally printable)
+  - Ghostscript post-processing step in `annotation:markdown_report` flattens embedded graphics and fonts
+  - Ghostscript step is soft — skips silently if `gs` is not installed on the host, no extra install required
 
 ### `Changed`
 - Moved `extract_roi` from `modules/mergebam.nf` into `modules/epi2me.nf`; ROI extraction now happens inside the epi2me workflow and the result is emitted as `occ_bam`
 - Updated `main.nf` to remove the `occ_bams` argument from `epi2me()` calls and join annotation input via `epi2me_results.occ_bam` instead
 - `extract_roi` now uses `task.cpus` instead of `params.threads` (fixes undefined-parameter warning)
-
-### `Changed`
 - `sample_ids_bam.txt` delimiter handling now accepts both tab and space in all parsers
   - `modules/mergebam.nf`: changed `splitEachLine('\t')` to `splitEachLine(~/\t| /)`
   - `modules/epi2me.nf` and `main.nf`: changed `tokenize("\t")` to `trim().split(/\s+/)`
+- Fixed SNV executive summary CLNSIG filter to catch combined ClinVar pathogenic classifications
+  - Changed from exact match (`CLNSIG == "Pathogenic"`) to case-insensitive substring match
+  - Now catches values like `"Pathogenic/Likely_pathogenic/risk factor"`, `"Likely_pathogenic"`, etc.
+  - Only affects the executive summary table; full SNV table is unchanged
 
 ### `Fixed`
 - Fixed `smart_sample_monitor_v2.sh` loading 0 samples when `set -eo pipefail` is active

@@ -4,7 +4,7 @@
 [![run with apptainer](https://img.shields.io/badge/run%20with-apptainer-1d355c.svg?labelColor=000000)](https://apptainer.org/)
 [![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed.svg?labelColor=000000)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Release](https://img.shields.io/badge/release-v1.0.0-blue.svg)](https://github.com/VilhelmMagnusLab/Diana/releases)
+[![Release](https://img.shields.io/github/v/tag/VilhelmMagnusLab/DIANA?label=release&color=blue)](https://github.com/VilhelmMagnusLab/DIANA/releases)
 
 ## Overview
 
