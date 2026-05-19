@@ -90,7 +90,10 @@ if ! git diff-index --quiet HEAD --; then
 fi
 
 echo "[update] Pulling latest changes from '$FETCH_REMOTE/$upstream_default_branch'..."
-git pull --ff-only "$FETCH_REMOTE" "$upstream_default_branch"
+if ! git pull --ff-only "$FETCH_REMOTE" "$upstream_default_branch" 2>/dev/null; then
+  echo "[update] Fast-forward not possible (branches diverged). Resetting to remote..."
+  git reset --hard "${FETCH_REMOTE}/${upstream_default_branch}"
+fi
 
 if [ "$stashed" -eq 1 ]; then
   echo "[update] Restoring stashed changes..."
